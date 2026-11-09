@@ -1,27 +1,30 @@
-const CACHE_NAME = 'void-notes-cache-v3';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192X192.png',
-  '/icon-512x512.png'
-];
-const APP_SHELL_URL = '/index.html';
+const CACHE_NAME = 'void-notes-cache-v4';
 
 self.addEventListener('install', (event) => {
+  const scope = self.registration.scope;
+  const assetsToCache = [
+    scope,
+    new URL('index.html', scope).href,
+    new URL('manifest.json', scope).href,
+    new URL('icon-192X192.png', scope).href,
+    new URL('icon-512x512.png', scope).href
+  ];
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(assetsToCache))
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.map((key) => {
-        if (key !== CACHE_NAME) return caches.delete(key);
-      })
-    ))
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      )
+    )
   );
   self.clients.claim();
 });
@@ -36,18 +39,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never cache API routes
+  if (requestUrl.pathname.includes('/api/')) {
+    return;
+  }
+
+  const scope = self.registration.scope;
+  const appShellUrl = new URL('index.html', scope).href;
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           const responseToCache = response.clone();
           void caches.open(CACHE_NAME).then((cache) => {
-            cache.put(APP_SHELL_URL, responseToCache);
+            cache.put(appShellUrl, responseToCache);
           });
           return response;
         })
         .catch(async () => {
-          const cachedResponse = await caches.match(APP_SHELL_URL);
+          const cachedResponse = await caches.match(appShellUrl);
           return cachedResponse || Response.error();
         })
     );

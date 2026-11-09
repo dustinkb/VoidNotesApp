@@ -253,6 +253,14 @@ if (typeof window !== 'undefined') {
 // Storage Public API
 // ----------------------------------------------------
 
+function isBackendAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:') {
+    return false;
+  }
+  return true;
+}
+
 export const storage = {
   subscribeStatus: (listener: StatusListener) => {
     statusListeners.add(listener);
@@ -299,10 +307,12 @@ export const storage = {
         idbSaveAllNotes(merged).catch(() => {});
       }
 
-      // Trigger background sync with backend
-      setTimeout(() => {
-        storage.syncWithServer().catch(() => {});
-      }, 100);
+      // Trigger background sync with backend if available
+      if (isBackendAvailable()) {
+        setTimeout(() => {
+          storage.syncWithServer().catch(() => {});
+        }, 100);
+      }
 
       notifyStatus('saved', 'Loaded from local storage');
       return merged;
@@ -336,11 +346,13 @@ export const storage = {
       }
       notifyStatus('saved', 'Saved locally');
 
-      // Schedule background server sync
-      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
-      syncDebounceTimer = setTimeout(() => {
-        storage.syncWithServer().catch(() => {});
-      }, 1200);
+      // Schedule background server sync if backend available
+      if (isBackendAvailable()) {
+        if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = setTimeout(() => {
+          storage.syncWithServer().catch(() => {});
+        }, 1200);
+      }
     }, 200);
   },
 
@@ -350,8 +362,10 @@ export const storage = {
     removeNoteFromLocalStorage(id);
     await idbDeleteNote(id);
 
-    // Immediately inform server of deletion
-    fetch(`/api/notes/${id}`, { method: 'DELETE' }).catch(() => {});
+    // Inform server of deletion if backend available
+    if (isBackendAvailable()) {
+      fetch(`/api/notes/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
 
     notifyStatus('saved', 'Note deleted');
   },
@@ -360,6 +374,11 @@ export const storage = {
   syncWithServer: async (
     overrideNotes?: Note[]
   ): Promise<{ success: boolean; syncedNotes?: Note[] }> => {
+    if (!isBackendAvailable()) {
+      notifyStatus('saved', 'Saved locally (Multi-tier)');
+      return { success: true };
+    }
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       notifyStatus('offline', 'Offline (saved locally)');
       return { success: false };

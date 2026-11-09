@@ -10,14 +10,13 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if ('serviceWorker' in navigator) {
-  const baseUrl = import.meta.env.BASE_URL;
-
   if (import.meta.env.PROD) {
     window.addEventListener('load', () => {
+      const swUrl = new URL('sw.js', document.baseURI).href;
       navigator.serviceWorker
-        .register(`${baseUrl}sw.js`, {scope: baseUrl})
+        .register(swUrl)
         .catch((error) => {
-          console.error('Service worker registration failed', error);
+          console.warn('Service worker registration failed:', error);
         });
     });
   } else {
