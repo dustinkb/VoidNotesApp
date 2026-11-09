@@ -1,0 +1,8 @@
+{
+  "name": "VoidNotes",
+  "description": "Minimalist AMOLED dark-themed local-first notes application with Markdown preview and dictation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
