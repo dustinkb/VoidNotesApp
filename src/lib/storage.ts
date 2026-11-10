@@ -253,6 +253,9 @@ if (typeof window !== 'undefined') {
 // Storage Public API
 // ----------------------------------------------------
 
+let onNoteSavedCallback: ((note: Note) => void) | null = null;
+let onNoteDeletedCallback: ((id: string) => void) | null = null;
+
 function isBackendAvailable(): boolean {
   if (typeof window === 'undefined') return false;
   if (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:') {
@@ -343,6 +346,13 @@ export const storage = {
 
       if (noteToSave) {
         await idbSaveNote(noteToSave);
+        if (onNoteSavedCallback) {
+          try {
+            onNoteSavedCallback(noteToSave);
+          } catch (e) {
+            console.error('Error in onNoteSavedCallback:', e);
+          }
+        }
       }
       notifyStatus('saved', 'Saved locally');
 
@@ -356,11 +366,33 @@ export const storage = {
     }, 200);
   },
 
+  // Save directly to local storage layers without triggering cloud save loops
+  saveLocalOnly: async (note: Note): Promise<void> => {
+    mirrorNoteToLocalStorage(note);
+    await idbSaveNote(note);
+  },
+
+  onNoteSaved: (fn: (note: Note) => void) => {
+    onNoteSavedCallback = fn;
+  },
+
+  onNoteDeleted: (fn: (id: string) => void) => {
+    onNoteDeletedCallback = fn;
+  },
+
   // Delete note from all tiers
   deleteNote: async (id: string): Promise<void> => {
     pendingNoteSaves.delete(id);
     removeNoteFromLocalStorage(id);
     await idbDeleteNote(id);
+
+    if (onNoteDeletedCallback) {
+      try {
+        onNoteDeletedCallback(id);
+      } catch (e) {
+        console.error('Error in onNoteDeletedCallback:', e);
+      }
+    }
 
     // Inform server of deletion if backend available
     if (isBackendAvailable()) {

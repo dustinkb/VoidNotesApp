@@ -41,6 +41,7 @@ interface EditorProps {
   onTogglePin: (id: string) => void;
   toggleSidebar: () => void;
   onCreateNote: () => void;
+  isFirebaseSynced?: boolean;
 }
 
 export const Editor: FC<EditorProps> = ({
@@ -51,7 +52,8 @@ export const Editor: FC<EditorProps> = ({
   onDuplicate,
   onTogglePin,
   toggleSidebar,
-  onCreateNote
+  onCreateNote,
+  isFirebaseSynced = false
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -509,11 +511,15 @@ export const Editor: FC<EditorProps> = ({
             onClick={() => storage.syncWithServer().catch(() => {})}
             className="min-h-[36px] rounded-lg border border-border px-3 flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.16em] text-text-secondary/80 hover:text-text-primary hover:border-text-secondary/40 transition-all cursor-pointer"
             aria-label="Storage status"
-            title={`${statusMessage || 'IndexedDB + LocalStorage mirror + Cloud backend'}. Click to sync now.`}
+            title={`${
+              isFirebaseSynced
+                ? 'Synced to Firebase Cloud across devices'
+                : statusMessage || 'IndexedDB + LocalStorage mirror active'
+            }. Click to sync.`}
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                syncStatus === 'synced'
+                isFirebaseSynced || syncStatus === 'synced'
                   ? 'bg-emerald-400'
                   : syncStatus === 'saving'
                   ? 'bg-amber-400 animate-pulse'
@@ -525,6 +531,8 @@ export const Editor: FC<EditorProps> = ({
             <span>
               {syncStatus === 'saving'
                 ? 'Saving'
+                : isFirebaseSynced
+                ? 'Firebase Synced'
                 : syncStatus === 'synced'
                 ? 'Synced'
                 : syncStatus === 'offline'

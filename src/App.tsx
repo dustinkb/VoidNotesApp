@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { Note } from './types';
 import { storage, SyncStatus } from './lib/storage';
+import { loginWithGoogle, logout } from './lib/firebase';
+import { firebaseSync, FirebaseSyncStatus } from './lib/firebaseSync';
+import { User as FirebaseUser } from 'firebase/auth';
 import { Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { ArrowDownCircle, FileUp } from 'lucide-react';
@@ -102,11 +105,50 @@ export default function App() {
   };
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(storage.getStatus());
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(firebaseSync.getCurrentUser());
+  const [firebaseStatus, setFirebaseStatus] = useState<FirebaseSyncStatus>(firebaseSync.getStatus());
 
   useEffect(() => {
     return storage.subscribeStatus((status) => {
       setSyncStatus(status);
     });
+  }, []);
+
+  // Live real-time multi-device Firebase sync
+  useEffect(() => {
+    const unsubAuth = firebaseSync.init((remoteNotes) => {
+      if (remoteNotes.length > 0) {
+        setNotes((prevNotes) => {
+          const map = new Map<string, Note>();
+          for (const n of prevNotes) map.set(n.id, n);
+          for (const n of remoteNotes) {
+            const existing = map.get(n.id);
+            if (!existing || (n.updatedAt || 0) >= (existing.updatedAt || 0)) {
+              map.set(n.id, n);
+              storage.saveLocalOnly(n).catch(() => {});
+            }
+          }
+          return Array.from(map.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+        });
+      }
+    });
+
+    const unsubStatus = firebaseSync.subscribe((status, user) => {
+      setFirebaseStatus(status);
+      setFirebaseUser(user);
+    });
+
+    storage.onNoteSaved((note) => {
+      firebaseSync.syncNote(note).catch(() => {});
+    });
+    storage.onNoteDeleted((id) => {
+      firebaseSync.deleteNote(id).catch(() => {});
+    });
+
+    return () => {
+      unsubAuth();
+      unsubStatus();
+    };
   }, []);
 
   useEffect(() => {
@@ -308,6 +350,22 @@ console.log("Welcome to the void.");
     }
   }, [notes]);
 
+  const handleGoogleLogin = useCallback(async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      console.error('Google Sign-In failed:', err);
+    }
+  }, []);
+
+  const handleGoogleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } catch (err: any) {
+      console.error('Logout failed:', err);
+    }
+  }, []);
+
   const selectedNote = notes.find(n => n.id === selectedId) || null;
   const showInstallBtn = Boolean(deferredPrompt) && !isInstalled;
 
@@ -343,6 +401,10 @@ console.log("Welcome to the void.");
         onRestore={handleRestore}
         onSync={handleManualSync}
         syncStatus={syncStatus}
+        firebaseUser={firebaseUser}
+        firebaseStatus={firebaseStatus}
+        onLogin={handleGoogleLogin}
+        onLogout={handleGoogleLogout}
       />
 
       <Editor
@@ -354,6 +416,7 @@ console.log("Welcome to the void.");
         onTogglePin={handleTogglePin}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onCreateNote={handleCreateNote}
+        isFirebaseSynced={Boolean(firebaseUser && firebaseStatus === 'synced')}
       />
 
       <input

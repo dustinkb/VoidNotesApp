@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile for multi-device sync",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth user ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user document was created"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "Note entity synchronized across user devices",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique note identifier",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the note",
+          "maxLength": 300
+        },
+        "body": {
+          "type": "string",
+          "description": "Markdown body content of the note",
+          "maxLength": 500000
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Client epoch timestamp when note was first created"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Client epoch timestamp when note was last edited"
+        },
+        "serverUpdatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last sync"
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Whether the note is pinned to top of the list"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        }
+      },
+      "required": ["id", "title", "body", "createdAt", "updatedAt", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Private user account profile"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": "Note",
+      "description": "User notes synchronized across personal devices"
+    }
+  }
+}

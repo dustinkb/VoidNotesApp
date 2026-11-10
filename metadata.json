@@ -1,6 +1,6 @@
 {
   "name": "VoidNotes",
-  "description": "Minimalist AMOLED dark-themed local-first notes application with Markdown preview and dictation.",
+  "description": "Minimalist AMOLED dark-themed local-first notes application with Markdown preview, multi-tier persistence, and real-time Firebase device sync.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
